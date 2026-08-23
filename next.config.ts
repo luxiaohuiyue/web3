@@ -13,6 +13,7 @@ const nextConfig: NextConfig = {
         child_process: false,
         // 关键：解决 wagmi/viem 的 accounts 模块解析问题
         accounts: false,
+        '@react-native-async-storage/async-storage': false,
       };
     }
     return config;
