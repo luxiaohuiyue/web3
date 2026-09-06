@@ -27,10 +27,11 @@ export function MintButton() {
 
     // ✅ 1. 监听交易确认状态
     const { data: receipt, isSuccess: isTxSuccess, isError: isTxError } = useWaitForTransactionReceipt({ hash })
-
+    const tagertAddress = '0x5A4eA3a013D42Cfd1B1609d19f6eA998EeE06D30'
+    // '0x4798388e3adE569570Df626040F07DF71135C48E'
     // ✅ 2. 监听余额变化（交易确认后自动触发）
     const { data: balance } = useReadContract({
-        address: '0xfFf9976782d46CC05630D1f6eBAb18b2324d6B14',
+        address: tagertAddress,
         abi: TEST_TOKEN_ABI,
         functionName: 'balanceOf',
         args: [account],
@@ -42,7 +43,7 @@ export function MintButton() {
     const handleMint = () => {
         if (!account || !chain) return
         writeContract({
-            address: '0xfFf9976782d46CC05630D1f6eBAb18b2324d6B14',
+            address: tagertAddress,
             abi: TEST_TOKEN_ABI,
             functionName: 'mint',
             args: [account, 1000000000000000000000n],

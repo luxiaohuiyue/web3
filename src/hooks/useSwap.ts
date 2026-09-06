@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react'
 import { useAccount, useWriteContract, useReadContract, useWaitForTransactionReceipt } from 'wagmi'
 import { parseUnits, formatUnits ,encodePacked,type Address  } from 'viem'
-import { contractConfig, ERC20_ABI } from '@/lib/contracts'
+import { contractConfig, ERC20_ABI, POOL_ABIS } from '@/lib/contracts'
 import { TOKENS } from '@/lib/constants'
 
 export interface SwapParams {
@@ -9,13 +9,22 @@ export interface SwapParams {
   tokenOut: string
   amountIn: string
   slippage: number
+  zeroForOne: boolean
+  currentSqrtPriceX96: number
+  sqrtPriceLimitX96: number
 }
+// const poolAddress = "0x8fE365424995B2415dc2c086a2D9D6c5feC3477a";
+
 
 export function useSwap() {
   const { address } = useAccount()
   const { writeContract, data: hash, isPending } = useWriteContract()
   const [lastSwapParams, setLastSwapParams] = useState<SwapParams | null>(null)
+  // const finalLimit
 
+// 提取 sqrtPriceX96（它是返回数组的第一个元素）
+  const currentSqrtPriceX96 = '77351509797327908890733294413n';
+  console.log("当前价格:", currentSqrtPriceX96)   ;
   // 等待交易确认
   const { isLoading: isConfirming, isSuccess: isConfirmed ,
     isError: isTxError, error: txError,
@@ -48,39 +57,26 @@ export function useSwap() {
       // Since we are fetching tokens from API now, the TOKENS constant might be outdated or incomplete if we rely solely on it.
       // However, for this hook, we receive token addresses.
       // We should ideally fetch token info if not found, but for fallback simulation we need decimals.
-      
+
       // Let's try to find in TOKENS first, if not found, we might need to look up from a passed list or fetch.
       // But `useSwap` doesn't have access to the dynamic token list from `SwapInterface`.
       // The `params` only contain addresses.
-      
-      // FIX: In SwapInterface, we should pass decimals or full token objects to getQuote if possible, 
+
+      // FIX: In SwapInterface, we should pass decimals or full token objects to getQuote if possible,
       // or useSwap should fetch token info on demand.
       // For now, let's relax the check for simulation fallback or assume standard 18 decimals if not found,
       // OR better: trust the API first.
-      
+
       let tokenInDecimals = 18;
       const tokenInObj = Object.values(TOKENS).find(t => t.address.toLowerCase() === params.tokenIn.toLowerCase());
       if (tokenInObj) tokenInDecimals = tokenInObj.decimals;
-      
-      // If we don't find it in TOKENS, we proceed with 18 decimals for API call serialization if needed,
-      // but API call takes string amount. Wait, amountInWei needs decimals.
-      // If we don't know decimals, we can't parse units correctly.
-      
-      // Solution: The caller (SwapInterface) knows the token objects. 
-      // We should probably update useSwap to accept decimals or use public client to fetch decimals.
-      // For immediate fix: assume 18 if not found, OR check if the caller can pass it.
-      // `SwapParams` has strings.
-      
-      // Let's fetch decimals if not found in local map using wagmi's useReadContract? 
-      // No, we can't use hooks inside callback.
-      
-      // We will assume 18 decimals if local lookup fails, but log a warning.
+
       if (!tokenInObj) {
-         console.warn(`Token ${params.tokenIn} not found in local config, assuming 18 decimals`);
+        console.warn(`Token ${params.tokenIn} not found in local config, assuming 18 decimals`);
       }
 
       const amountInWei = parseUnits(params.amountIn, tokenInDecimals)
-      
+
       // 调用合约的 quoteExactInput 函数
       const result = await fetch('/api/quote', {
         method: 'POST',
@@ -95,19 +91,18 @@ export function useSwap() {
           sqrtPriceLimitX96: '0',
         }),
       }).then(res => res.json())
-      
+
       if (result.error) {
         // 抛出包含错误消息的错误，优先使用 msg 字段
         const errorMessage = result.msg || result.error || '获取报价失败'
         throw new Error(errorMessage)
       }
-      
-      // ... rest of the success logic
-      
+
+
       let tokenOutDecimals = 18;
       const tokenOutObj = Object.values(TOKENS).find(t => t.address.toLowerCase() === params.tokenOut.toLowerCase());
       if (tokenOutObj) tokenOutDecimals = tokenOutObj.decimals;
-      
+
       const amountOut = BigInt(result.amountOut)
       const priceImpact = result.priceImpact || '0.5' // 默认价格影响
       console.log(result,'asasas')
@@ -153,71 +148,20 @@ export function useSwap() {
     })
   }, [address, writeContract])
 
-  // 执行交换
-  // const executeSwap = useCallback(async (params: SwapParams) => {
-  //   if (!address) {
-  //     throw new Error('Wallet not connected')
-  //   }
-  //
-  //   const tokenIn = Object.values(TOKENS).find(t => t.address === params.tokenIn)
-  //   const tokenOut = Object.values(TOKENS).find(t => t.address === params.tokenOut)
-  //
-  //   if (!tokenIn || !tokenOut) {
-  //     throw new Error('Token not found')
-  //   }
-  //
-  //   const amountInWei = parseUnits(params.amountIn, tokenIn.decimals)
-  //
-  //   // 获取价格预估来计算最小输出
-  //   const quote = await getQuote(params)
-  //   if (!quote) {
-  //     throw new Error('Failed to get quote')
-  //   }
-  //
-  //   const amountOutWei = parseUnits(quote.amountOut, tokenOut.decimals)
-  //   const minAmountOut = amountOutWei * BigInt(Math.floor((100 - params.slippage) * 100)) / BigInt(10000)
-  //
-  //   // 检查是否是原生ETH交易
-  //   const isNativeTokenIn = 'isNative' in tokenIn && tokenIn.isNative
-  //
-  //   // 如果是ETH交易，则使用wrappedAddress(WETH)
-  //   const actualTokenIn = isNativeTokenIn && 'wrappedAddress' in tokenIn
-  //     ? tokenIn.wrappedAddress as string
-  //     : params.tokenIn
-  //
-  //   const actualTokenOut = tokenOut.address === TOKENS.ETH.address && 'wrappedAddress' in TOKENS.ETH
-  //     ? TOKENS.ETH.wrappedAddress as string
-  //     : params.tokenOut
-  //
-  //   const swapParams = {
-  //     tokenIn: actualTokenIn as `0x${string}`,
-  //     tokenOut: actualTokenOut as `0x${string}`,
-  //     indexPath: [0], // 简化：使用第一个池子的索引
-  //     recipient: address,
-  //     deadline: BigInt(Math.floor(Date.now() / 1000) + 1200), // 20分钟后过期
-  //     amountIn: amountInWei,
-  //     amountOutMinimum: minAmountOut,
-  //     sqrtPriceLimitX96: BigInt(0),
-  //   }
-  //
-  //   setLastSwapParams(params)
-  //
-  //   // 如果是ETH交易，增加value参数
-  //   const value = isNativeTokenIn ? amountInWei : BigInt(0)
-  //
-  //   writeContract({
-  //     ...contractConfig.swapRouter,
-  //     functionName: 'exactInput',
-  //     args: [swapParams],
-  //     value,
-  //   })
-  // }, [address, writeContract, getQuote])
-  const executeSwap = useCallback(async (params: SwapParams) => {
+  const executeSwap = useCallback(async (params: SwapParams ,amountIn: bigint,
+      zeroForOne: boolean,
+      sqrtPriceLimitX96:bigint) => {
     console.group('🔍 executeSwap Debug')
     console.log('params:', params)
     console.log('address:', address)
     console.log('writeContract:', writeContract)
+    console.log('zeroForOne',zeroForOne)
     console.log('contractConfig.swapRouter:', contractConfig.swapRouter)
+    if (currentSqrtPriceX96 === undefined) {
+      console.error("❌ 错误：当前池子价格未加载，请稍后再试！");
+      alert("价格数据加载中，请稍后再试！");
+      return; // 直接终止，不往下执行
+    }
 
     if (!address) {
       console.error('❌ 钱包未连接')
@@ -239,21 +183,7 @@ export function useSwap() {
       throw new Error('Failed to get quote')
     }
 
-    const amountOutWei = parseUnits(quote.amountOut, tokenOut.decimals)
 
-    const slippageBps = BigInt(Math.floor(params.slippage * 100));
-    const ONE_HUNDRED_PERCENT_BPS = 10000n;
-
-// 安全的滑点计算公式
-//     const minAmountOut = (amountOutWei * (ONE_HUNDRED_PERCENT_BPS - slippageBps)) / ONE_HUNDRED_PERCENT_BPS;
-    // const slippageBps = BigInt(Math.fl oor(params.slippage * 100)); // 将 0.5 转为 50 (basis points)
-    // const ONE_HUNDRED_PERCENT_BPS = BigInt(10000);
-    const minAmountOut = 0n
-// 计算公式：amountOut * (10000 - slippageBps) / 10000
-//     const minAmountOut = (amountOutWei * (ONE_HUNDRED_PERCENT_BPS - slippageBps)) / ONE_HUNDRED_PERCENT_BPS;
-//     const slippageBps = BigInt(Math.floor(params.slippage * 100))
-    // const minAmountOut = amountOutWei - (amountOutWei * slippageBps / 10000n)
-    // const minAmountOut = amountOutWei * BigInt(Math.floor((100 - params.slippage) * 100)) / BigInt(10000)
 
     const isNativeTokenIn = 'isNative' in tokenIn && tokenIn.isNative
     const actualTokenIn = isNativeTokenIn && 'wrappedAddress' in tokenIn
@@ -265,7 +195,7 @@ export function useSwap() {
         : params.tokenOut
     const path = encodePacked(
         ['address', 'uint24', 'address'],
-        [actualTokenIn, 3000, actualTokenOut] // 3000 是 0.3% 的手续费
+        [actualTokenIn, 1000, actualTokenOut] // 3000 是 0.3% 的手续费
     )
     const swapParams = {
       path: path,
@@ -281,7 +211,9 @@ export function useSwap() {
     console.log('swapParams:', swapParams)
     console.log('value:', isNativeTokenIn ? amountInWei : BigInt(0))
     console.log('ABI functionName:', contractConfig.swapRouter.abi.find(a => a.name === 'exactInput'))
-
+    console.log(sqrtPriceLimitX96,'sqrtPriceLimitX96')
+    const finalLimit = sqrtPriceLimitX96 < 4295128740n ? 4295128740n : sqrtPriceLimitX96;
+    console.log("传入合约的限制价格 (finalLimit):", finalLimit);
     setLastSwapParams(params)
 
     try {
@@ -294,6 +226,12 @@ export function useSwap() {
       console.log('✅ writeContract 调用成功')
     } catch (error) {
       console.error('❌ writeContract 调用异常:', error)
+      console.error("交易失败详情:", error);
+      if (error?.message?.includes("SPL")) {
+        alert("滑点过低，请调高滑点！");
+      } else if (error?.message?.includes("Internal error")) {
+        alert("RPC 节点或钱包内部错误，请检查网络或刷新页面！");
+      }
     }
     console.groupEnd()
   }, [address, writeContract, getQuote])
@@ -309,9 +247,10 @@ export function useSwap() {
     isTxError,
     txError, // ✅ 新增：交易失败状态
     hash,
-    receipt,        //
+    finalLimit,
+    receipt,
     lastSwapParams,
     isTimeout,        // 新增：是否超时
     refetchReceipt,
   }
-} 
+}

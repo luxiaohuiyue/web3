@@ -44,6 +44,7 @@ export default function SwapInterface() {
     txError,
     isTimeout,        // 新增：是否超时
     refetchReceipt,
+    finalLimit
   } = useSwap()
   const { pools, loading: poolsLoading, error: poolsError } = usePools();
 

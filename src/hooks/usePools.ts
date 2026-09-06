@@ -73,6 +73,7 @@ export const usePools = () => {
   // 处理池子数据
   useEffect(() => {
     if (poolsData && Array.isArray(poolsData)) {
+      console.log(poolsData,'poolsData')
       try {
         const processedPools = (poolsData as RawPoolData[]).map((pool) => {
           // 获取代币信息
