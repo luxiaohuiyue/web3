@@ -105,11 +105,11 @@ export function useSwap() {
         console.group('🔍 executeSwap Debug')
 
         // 1. 参数安检
-        if (!params.currentSqrtPriceX96) {
-            console.error("❌ 错误：当前池子价格未加载！");
-            alert("价格数据加载中，请稍后再试！");
-            return;
-        }
+        // if (!params.currentSqrtPriceX96) {
+        //     console.error("❌ 错误：当前池子价格未加载！");
+        //     alert("价格数据加载中，请稍后再试！");
+        //     return;
+        // }
         if (!address) {
             console.error('❌ 钱包未连接')
             return;
@@ -133,11 +133,9 @@ export function useSwap() {
         let finalLimit: bigint;
 
         if (params.zeroForOne) {
-            let calculatedLimit = params.currentSqrtPriceX96 * (ONE_HUNDRED_PERCENT - slippageBps) / ONE_HUNDRED_PERCENT;
-            finalLimit = calculatedLimit < MIN_SQRT_PRICE ? MIN_SQRT_PRICE : calculatedLimit;
+            finalLimit =  MIN_SQRT_PRICE +  1n ;
         } else {
-            let calculatedLimit = params.currentSqrtPriceX96 * (ONE_HUNDRED_PERCENT + slippageBps) / ONE_HUNDRED_PERCENT;
-            finalLimit = calculatedLimit > MAX_SQRT_PRICE ? MAX_SQRT_PRICE : calculatedLimit;
+            finalLimit =MIN_SQRT_PRICE - 1n ;
         }
         console.log("✅ 传入合约的限制价格 (finalLimit):", finalLimit.toString());
 
