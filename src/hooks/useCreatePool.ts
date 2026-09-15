@@ -19,7 +19,8 @@ const getTickRange = (fee: number): { tickLower: number; tickUpper: number } => 
   // 根据费率设置不同的 tick 范围
   switch (fee) {
     case 500:   // 0.05%
-      return { tickLower: -60, tickUpper: 60 }     // 较小范围，适合稳定币
+      return { tickLower: -887220,
+        tickUpper: 887220, }     // 较小范围，适合稳定币
     case 3000:  // 0.3%
       return { tickLower: -887220, tickUpper: 887220 } // 全范围流动性
     case 10000: // 1%
