@@ -8,10 +8,14 @@ const client = createPublicClient({
   transport: http(process.env.NEXT_PUBLIC_INFURA_URL || 'https://rpc.sepolia.org')
 });
 
+// const QUOTER_ABI = parseAbi([
+//   'function quoteExactInput(ExactInputParams params) external returns ( uint256 amountOut   )',
+//   'struct ExactInputParams { address tokenIn; address tokenOut; uint32[] indexPath; uint256 amountIn; uint160 sqrtPriceLimitX96; }'
+// ]);
 const QUOTER_ABI = parseAbi([
-  'function quoteExactInput(ExactInputParams params) external returns ( uint256 amountOut   )',
-  'struct ExactInputParams { address tokenIn; address tokenOut; uint32[] indexPath; uint256 amountIn; uint160 sqrtPriceLimitX96; }'
-]);
+    'function quoteExactInput(ExactInputParams params) external returns (uint256 amountOut)',
+    'struct ExactInputParams { address tokenIn; address tokenOut; uint32[] indexPath; uint256 amountIn; uint160 sqrtPriceLimitX96; }',
+])
 
 // Helper to find the best pool for a pair
 async function findBestPool(tokenIn: string, tokenOut: string) {
