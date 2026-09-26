@@ -112,10 +112,10 @@ export function useSwap() {
                 console.error('后端返回数据:', result); // 打印完整响应，方便排查
                 throw new Error('报价接口缺少 amountOut 字段');
             }
-            if (result.poolIndex === undefined) {
-                console.error('后端返回数据:', result);
-                throw new Error('报价接口缺少 poolIndex 字段');
-            }
+            // if (result.poolIndex === undefined) {
+            //     console.error('后端返回数据:', result);
+            //     throw new Error('报价接口缺少 poolIndex 字段');
+            // }
 
             const amountOutRaw = BigInt(result.amountOut)
 
@@ -123,7 +123,7 @@ export function useSwap() {
                 amountOutRaw,
                 amountOut: formatUnits(amountOutRaw, tokenOutDecimals),
                 poolAddress: result.poolAddress,
-                poolIndex: 1
+                poolIndex: 2
             }
         } catch (error) {
             console.error('Quote failed:', error)
@@ -164,6 +164,24 @@ export function useSwap() {
         }
         const amountOutMinimum = quote.amountOutRaw * (10_000n - slippageBps) / 10_000n
 
+        const tokenInAddress = typeof params.tokenIn === 'string'
+            ? params.tokenIn
+            : params.tokenIn.address;
+
+        const tokenOutAddress = typeof params.tokenOut === 'string'
+            ? params.tokenOut
+            : params.tokenOut.address;
+
+// 确认是字符串后再安全调用
+        const zeroForOne =
+            tokenInAddress.toLowerCase() < tokenOutAddress.toLowerCase()
+        const MIN_SQRT_PRICE = 4295128739n
+        const MAX_SQRT_PRICE =
+            1461446703485210103287273052203988822378723970342n
+        const sqrtPriceLimitX96 = zeroForOne
+            ? MIN_SQRT_PRICE + 1n
+            : MAX_SQRT_PRICE - 1n
+
         // 3. 处理原生代币
         const isNativeTokenIn = 'isNative' in tokenIn && tokenIn.isNative
 
@@ -176,7 +194,7 @@ export function useSwap() {
             deadline: BigInt(Math.floor(Date.now() / 1000) + 1200),
             amountIn: amountInWei,
             amountOutMinimum,
-            sqrtPriceLimitX96: 0n, // ✅ 优化：设为 0n 表示不限制价格边界，完全依赖 amountOutMinimum 保护
+            sqrtPriceLimitX96: sqrtPriceLimitX96, // ✅ 优化：设为 0n 表示不限制价格边界，完全依赖 amountOutMinimum 保护
         }
 
         console.log('📦 swapParams:', swapParams)
