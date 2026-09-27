@@ -111,16 +111,34 @@ export default function SwapInterface() {
   const tokenList = Object.values(TOKENS)
 
   // 检查是否需要授权
+  // useEffect(() => {
+  //   if (allowance && fromAmount) {
+  //     try {
+  //       const amountWei = parseUnits(fromAmount, fromToken.decimals)
+  //       setNeedsApproval(allowance < amountWei)
+  //     } catch {
+  //       setNeedsApproval(false)
+  //     }
+  //   } else {
+  //     setNeedsApproval(false)
+  //   }
+  // }, [allowance, fromAmount, fromToken.decimals])
   useEffect(() => {
-    if (allowance && fromAmount) {
-      try {
-        const amountWei = parseUnits(fromAmount, fromToken.decimals)
-        setNeedsApproval(allowance < amountWei)
-      } catch {
-        setNeedsApproval(false)
-      }
-    } else {
+    if (!fromAmount) {
       setNeedsApproval(false)
+      return
+    }
+
+    if (allowance === undefined) {
+      setNeedsApproval(true)
+      return
+    }
+
+    try {
+      const amountWei = parseUnits(fromAmount, fromToken.decimals)
+      setNeedsApproval(allowance < amountWei)
+    } catch {
+      setNeedsApproval(true)
     }
   }, [allowance, fromAmount, fromToken.decimals])
 

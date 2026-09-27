@@ -13,7 +13,7 @@ export interface SwapParams {
 
 export function useSwap() {
     const { address } = useAccount()
-    const { writeContract, data: hash, isPending } = useWriteContract()
+    const { writeContract,writeContractAsync, data: hash, isPending } = useWriteContract()
     const [lastSwapParams, setLastSwapParams] = useState<SwapParams | null>(null)
 
     const {
@@ -42,19 +42,34 @@ export function useSwap() {
     }
 
     // 授权代币
-    const approveToken = useCallback(async (tokenAddress: string, amount: string) => {
-        if (!address) return
-        const token = Object.values(TOKENS).find(t => t.address === tokenAddress)
-        if (!token) throw new Error('Token not found')
-        const amountWei = parseUnits(amount, token.decimals)
-        writeContract({
-            address: tokenAddress as `0x${string}`,
+    const approveToken = useCallback(async (tokenAddress, amount) => {
+        if (!address) throw new Error("钱包未连接")
+
+        const token = Object.values(TOKENS).find(
+            item => item.address.toLowerCase() === tokenAddress.toLowerCase()
+        )
+        if (!token) throw new Error("Token not found")
+
+        return writeContractAsync({
+            address: tokenAddress,
             abi: ERC20_ABI,
-            functionName: 'approve',
-            args: [contractConfig.swapRouter.address, amountWei],
-            gas: BigInt(500000),
+            functionName: "approve",
+            args: [contractConfig.swapRouter.address, parseUnits(amount, token.decimals)],
         })
-    }, [address, writeContract])
+    }, [address, writeContractAsync])
+    // const approveToken = useCallback(async (tokenAddress: string, amount: string) => {
+    //     if (!address) return
+    //     const token = Object.values(TOKENS).find(t => t.address === tokenAddress)
+    //     if (!token) throw new Error('Token not found')
+    //     const amountWei = parseUnits(amount, token.decimals)
+    //     writeContract({
+    //         address: tokenAddress as `0x${string}`,
+    //         abi: ERC20_ABI,
+    //         functionName: 'approve',
+    //         args: [contractConfig.swapRouter.address, amountWei],
+    //         gas: BigInt(500000),
+    //     })
+    // }, [address, writeContract])
 
     // ==========================================
     // 👇 优化后的获取价格预估逻辑
