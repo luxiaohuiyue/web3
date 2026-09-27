@@ -177,7 +177,12 @@ export function useSwap() {
         if (slippageBps < 0n || slippageBps >= 10_000n) {
             throw new Error('无效的滑点参数')
         }
-        const amountOutMinimum = quote.amountOutRaw * (10_000n - slippageBps) / 10_000n
+        // let slippageBps = BigInt(Math.round(params.slippage * 100))
+        // if (slippageBps < 500n) {
+        //     slippageBps = 500n; // 最低 5% 滑点
+        // }
+        const amountOutMinimum = 0n
+            // quote.amountOutRaw * (10_000n - slippageBps) / 10_000n
 
         const tokenInAddress = typeof params.tokenIn === 'string'
             ? params.tokenIn
